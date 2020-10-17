@@ -295,3 +295,70 @@ function LTileIntersect:MakeCellRanges(tbPolygonBorderTiles)
 
     return tbPolygonRange;
 end
+
+--@param v2Pos{x, y, z}
+function LTileIntersect:GetRingVerticesByAABB(v2WorldPos, v2MinPoint, v2MaxPoint, fRotation)
+    local fRotation = fRotation or 0.0;
+    --  v1--------------------max(v2)
+    --  |                       |
+    --  |                       |
+    --  |                       |
+    --  |                       |
+    --  |                       |
+    --  |                       |
+    --  |       (0,0)           |
+    --  |                       |
+    -- min----------------------v3
+
+    -- KVec2::rotated旋转的是xy平面，x->y是正方向，这里是z->x为正方向
+    local v2p0 = KVec2:new_local(v2MinPoint.z, v2MinPoint.x);
+    local v2p1 = KVec2:new_local(v2MaxPoint.z, v2MinPoint.x);
+    local v2p2 = KVec2:new_local(v2MaxPoint.z, v2MaxPoint.x);
+    local v2p3 = KVec2:new_local(v2MinPoint.z, v2MaxPoint.x);
+
+    -- 绕原点旋转之后的坐标，左手坐标系
+    -- ^
+    -- z
+    -- |
+    -- |
+    -- |---------> x
+    local fAngle = fRotation / 180.0 * math.pi;
+    local v2p0New = v2p0:rotated(fAngle);
+    local v2p1New = v2p1:rotated(fAngle);
+    local v2p2New = v2p2:rotated(fAngle);
+    local v2p3New = v2p3:rotated(fAngle);
+
+    -- 把正确的x和z值拿出来, 并且算出来世界坐标
+    local nWorldX = v2WorldPos.x;
+    local nWorldZ = v2WorldPos.z;
+    -- print("000", nWorldX, nWorldZ)
+    local v0 = {x = v2p0New.y + nWorldX, y = v2p0New.x + nWorldZ};
+    local v1 = {x = v2p1New.y + nWorldX, y = v2p1New.x + nWorldZ};
+    local v2 = {x = v2p2New.y + nWorldX, y = v2p2New.x + nWorldZ};
+    local v3 = {x = v2p3New.y + nWorldX, y = v2p3New.x + nWorldZ};
+    return {v0, v1, v2, v3};
+end
+
+--@function calc a building occupied tiles
+--@param v2WorldPos world position of the building, the point is the origin at the same time
+--@param v2MinPoint min position relative of origin point
+--@param v2MaxPoint max position relative of origin point
+--@param fRotation degree rotation about the origin
+function LTileIntersect:CalcBuildingTiles(v2WorldPos, v2MinPoint, v2MaxPoint, fRotation, tbInnerBox)
+    local tbRing = {};
+    local tbOutRing = self:GetRingVerticesByAABB(v2WorldPos, v2MinPoint, v2MaxPoint, fRotation);
+    tbRing[1] = tbOutRing;
+
+    -- inner ring
+    if #(tbInnerBox or {}) == 2 then
+        local v2InnerMinPoint = tbInnerBox[1];
+        local v2InnerMaxPoint = tbInnerBox[2];
+        local tbInnerRing = self:GetRingVerticesByAABB(v2WorldPos, v2InnerMinPoint, v2InnerMaxPoint, fRotation);
+        tbRing[2] = tbInnerRing;
+    end
+
+    local nStep = 200.0;
+    local tbOutTiles = self:CalcPolygonTiles(tbRing, nStep);
+
+    return tbOutTiles;
+end

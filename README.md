@@ -10,7 +10,7 @@ refer[2]
 
 for examples:
 ```
-
+	local tbOutTiles = LTileIntersect:CalcPolygonTiles(self.m_tbPolygon);
 ```
 
 # reference
